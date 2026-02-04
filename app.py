@@ -777,3 +777,101 @@ with tab4:
             attack_ranking.append((team, avg_scored, stats['scored'], stats['games']))
     
     attack_ranking.sort(key=lambda x: x[1], reverse=True)
+    
+    for i, (team, avg, total, games) in enumerate(attack_ranking[:5], 1):
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col1:
+            st.markdown(f"**#{i}**")
+        with col2:
+            st.progress(min(avg/3, 1.0), text=f"{team}: {avg:.2f} buts/match")
+        with col3:
+            st.caption(f"{total} buts ({games} matchs)")
+    
+    st.divider()
+    
+    # Top 5 défense
+    st.subheader("🛡️ Top 5 - Défense")
+    defense_ranking = []
+    for team, stats in team_stats.items():
+        if stats['games'] > 0:
+            avg_conceded = stats['conceded'] / stats['games']
+            defense_ranking.append((team, avg_conceded, stats['conceded'], stats['games']))
+    
+    defense_ranking.sort(key=lambda x: x[1])
+    
+    for i, (team, avg, total, games) in enumerate(defense_ranking[:5], 1):
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col1:
+            st.markdown(f"**#{i}**")
+        with col2:
+            # Moins c'est mieux pour la défense
+            st.progress(max(0, 1 - avg/3), text=f"{team}: {avg:.2f} buts/match")
+        with col3:
+            st.caption(f"{total} buts encaissés")
+    
+    st.divider()
+    
+    # Statistiques générales
+    st.subheader("📈 Données globales")
+    
+    total_matches = len(st.session_state.match_history)
+    total_goals = sum(stats['scored'] for stats in team_stats.values())
+    
+    if total_matches > 0:
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Matchs analysés", total_matches)
+        with col2:
+            st.metric("Buts totaux", total_goals)
+        with col3:
+            avg_goals = total_goals / total_matches
+            st.metric("Moyenne buts/match", f"{avg_goals:.2f}")
+        
+        # Distribution scores
+        st.subheader("🎯 Scores les plus fréquents")
+        score_counter = Counter()
+        for match_text in st.session_state.match_history:
+            match = parse_match(match_text)
+            if match:
+                score_counter[match['score']] += 1
+        
+        if score_counter:
+            common_scores = score_counter.most_common(10)
+            scores_df = pd.DataFrame(common_scores, columns=['Score', 'Fréquence'])
+            
+            fig_scores_hist = go.Figure(data=[
+                go.Bar(
+                    x=scores_df['Score'],
+                    y=scores_df['Fréquence'],
+                    marker_color='#9C27B0',
+                    text=scores_df['Fréquence'],
+                    textposition='auto'
+                )
+            ])
+            
+            fig_scores_hist.update_layout(
+                xaxis_title="Score",
+                yaxis_title="Nombre d'occurrences",
+                height=400
+            )
+            
+            st.plotly_chart(fig_scores_hist, use_container_width=True)
+
+# Footer
+st.divider()
+st.markdown(
+    """
+    <div style='text-align: center; color: #666; padding: 20px;'>
+        <p>⚽ <b>FIFA Predictor Pro v3.0</b> | Modèle Poisson amélioré + Machine Learning | 
+        25 équipes | Matchs sauvegardés</p>
+        <p><small>Prédictions à titre informatif. Les matchs ajoutés sont sauvegardés automatiquement.</small></p>
+        <p><small>© 2024 - Développé avec Streamlit & Python</small></p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+# Initialisation au premier lancement
+if 'initialized' not in st.session_state:
+    st.session_state.initialized = True
+    st.toast("✅ FIFA Predictor Pro initialisé avec 25 équipes!", icon="⚽")
